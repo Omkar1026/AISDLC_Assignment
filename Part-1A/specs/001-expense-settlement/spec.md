@@ -8,6 +8,17 @@
 
 **Input**: User description: "Build a deterministic Expense Split & Settlement Engine REST API for group expense tracking. Supported endpoints: POST /expenses: Record an expense with { payer: string, amount: number, participants: string[], description: string, splitType: "EQUAL" | "EXACT", exactShares?: Record<string, number> }. Returns HTTP 201 with created expense ID and per-participant share breakdown. GET /balances: Returns HTTP 200 with each participant's net balance rounded to 2 decimals (positive = owed money, negative = owes money). GET /settle: Computes and returns HTTP 200 with the minimum-transaction settlement plan [{ from, to, amount }] using a deterministic greedy net-balance algorithm. DELETE /reset: Clears in-memory state for isolated testing (HTTP 200). Define user stories, functional requirements, mathematical invariants, and binary acceptance criteria for valid (200/201) and invalid (400/404/413) requests. Exclude authentication and external databases."
 
+## Clarifications
+
+### Session 2026-11-09
+
+- Q: How should duplicate participants be handled? → A: Reject the request with HTTP 400.
+- Q: How should `EXACT` split totals be validated? → A: Accept when the sum of `exactShares` differs from `amount` by no more than 0.001; otherwise return HTTP 400.
+- Q: How should settlement ties be ordered? → A: Sort debtors and creditors by absolute balance descending, then alphabetically by name.
+- Q: How should equal-split shares be rounded? → A: Round each share to two decimal places using standard half-up rounding, then assign the full remainder, even when it exceeds one cent, to the first listed participant so shares sum to the total expense amount.
+- Q: If half-up rounding leaves more than one cent to reconcile in an equal split, how should it be handled? → A: Assign the full remainder to the first listed participant.
+- Q: If `EXACT` shares are within the 0.001 tolerance before rounding but do not sum to the rounded expense after each share is rounded to cents, what should happen? → A: Reject the request with HTTP 400.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Record a Group Expense (Priority: P1)
@@ -119,13 +130,16 @@ subsequent balance and settlement responses are empty.
   not processed.
 - Empty or whitespace-only payer or participant names, duplicate participant
   names, fewer than two distinct participants, and non-string names are
-  invalid.
+  invalid. Duplicate participants receive HTTP 400.
 - The payer may be outside the participant list; the payer's payment still
   contributes to the ledger and the payer is included in balances when owed.
-- Equal splits allocate any leftover cents in participant input order so the
-  same request always yields the same breakdown.
-- Exact shares must be supplied for exactly the listed participants and, after
-  rounding to cents, must sum to the rounded expense amount.
+- Equal splits independently round each participant's share half-up to cents,
+  then assign the remainder to the first listed participant.
+- Exact shares must be supplied for exactly the listed participants. Their
+  sum must differ from the expense amount by no more than 0.001; a greater
+  difference receives HTTP 400. After each share is rounded to cents, their
+  sum must also equal the rounded expense amount; otherwise the request
+  receives HTTP 400.
 - Monetary input that rounds to 0.00 is rejected for the expense amount.
 - Malformed JSON, a non-object request body, or a request with invalid field
   types returns HTTP 400 without recording an expense.
@@ -144,16 +158,22 @@ subsequent balance and settlement responses are empty.
 - **FR-002**: The service MUST accept `POST /expenses` only when `payer` and
   `description` are strings, `payer` is non-empty after trimming, `amount` is
   a finite positive number, and `participants` is an array of at least two
-  distinct non-empty strings after trimming. It MUST reject missing required
-  fields, wrong types, duplicates, self-only splits, and amounts that round to
-  0.00 with HTTP 400 and a JSON error object.
+  distinct non-empty strings after trimming. Duplicate participants MUST be
+  rejected. The service MUST reject missing required fields, wrong types,
+  self-only splits, and amounts that round to 0.00 with HTTP 400 and a JSON
+  error object.
 - **FR-003**: For an `EQUAL` split, the service MUST divide the rounded amount
-  among all listed participants in cents and assign any remainder cents in
-  participant input order. `exactShares` MUST be absent for this split type.
+  equally among all listed participants, round each share to two decimal
+  places using standard half-up rounding, and assign the full resulting
+  remainder, even when it exceeds one cent, to the first listed participant
+  so shares sum exactly to the rounded expense amount. `exactShares` MUST be
+  absent for this split type.
 - **FR-004**: For an `EXACT` split, the service MUST require `exactShares` to
   contain exactly one finite, non-negative amount for each listed participant.
-  The rounded shares MUST sum exactly to the rounded expense amount; otherwise
-  the request MUST receive HTTP 400.
+  The sum of `exactShares` MUST differ from the submitted `amount` by no more
+  than 0.001. After rounding each share to two decimal places, the shares MUST
+  sum exactly to the rounded expense amount. The request MUST receive HTTP
+  400 if either condition is not met.
 - **FR-005**: For a valid `POST /expenses`, the service MUST return HTTP 201
   with a JSON object containing a unique created expense `id` and a `shares`
   object mapping each participant name to their share rounded to two decimal
@@ -170,11 +190,12 @@ subsequent balance and settlement responses are empty.
 - **FR-008**: `GET /settle` MUST return HTTP 200 with a JSON array of
   debtor-to-creditor transfer objects, each containing `from`, `to`, and
   `amount`, that settles all net balances. It MUST use a deterministic greedy
-  process that matches the largest outstanding debt against the largest
-  credit, transfers the lesser amount, and repeats until all balances are
-  zero. Ties MUST be resolved by participant name in case-sensitive
-  alphabetical order. Each transfer MUST be positive and rounded to two
-  decimal places; no transfer may exceed either balance being settled.
+  process that sorts debtors and creditors by absolute balance descending,
+  then by participant name in case-sensitive alphabetical order. It MUST
+  match the first debtor to the first creditor, transfer the lesser absolute
+  balance, remove any settled balance, and repeat until all balances are zero.
+  Each transfer MUST be positive and rounded to two decimal places; no
+  transfer may exceed either balance being settled.
 - **FR-009**: The settlement plan MUST settle all balances without redundant
   transfers. Each transfer MUST eliminate at least one non-zero balance; for
   `k` non-zero balances, the plan MUST contain at most `k - 1` transfers. A
@@ -212,7 +233,7 @@ subsequent balance and settlement responses are empty.
 | Request or condition | Pass condition |
 |---|---|
 | Valid `POST /expenses` with `EQUAL` split | HTTP 201; response contains a unique `id` and a `shares` object with one two-decimal share for every participant; ledger updates once |
-| Valid `POST /expenses` with `EXACT` shares summing to the rounded amount | HTTP 201; response contains the `id` and a `shares` object with the supplied rounded share for every participant |
+| Valid `POST /expenses` with `EXACT` shares whose sum differs from amount by at most 0.001 and whose rounded shares sum to the rounded amount | HTTP 201; response contains the `id` and a `shares` object with the supplied rounded share for every participant |
 | Missing required field, malformed JSON, wrong field type, non-positive amount, self-only or duplicate participants, or inconsistent split | HTTP 400; JSON body has string `error`; ledger is unchanged |
 | Valid `GET /balances` | HTTP 200; response contains a `balances` object; every recorded participant and payer has a value with two decimal places and the correct sign; all net balances sum to 0.00 |
 | Valid `GET /settle` | HTTP 200; response is an array of positive, deterministic debtor-to-creditor transfers that settle every balance and meet FR-009's transfer bound |
@@ -265,13 +286,17 @@ subsequent balance and settlement responses are empty.
   rounded expense amount.
 - The 10 KB request-body limit means 10,240 bytes; a body of exactly 10,240
   bytes is within the limit.
-- Equal-split remainder cents go to participants in request order. Settlement
-  ties are resolved by case-sensitive alphabetical participant name.
+- Equal shares use standard half-up rounding; the full remainder, including
+  remainders greater than one cent, is reconciled against the first listed
+  participant. Settlement ties are resolved by absolute balance descending,
+  then case-sensitive alphabetical name.
 - “Minimum-transaction” means the deterministic greedy plan specified in
   FR-008, with no redundant transfers and the upper bound in FR-009; global
   optimization across every possible grouping of balances is not required.
 - `exactShares` is required for `EXACT` and rejected for `EQUAL`; exact share
-  values may be zero but not negative.
+  values may be zero but not negative. Shares are rounded individually to
+  cents; a rounded sum that differs from the rounded expense amount is
+  rejected, even when the unrounded sum is within the 0.001 tolerance.
 - Error messages are human-readable, but clients rely on HTTP status and the
   string-valued `error` field rather than exact message text.
 - Authentication, external databases, multi-group support, and persistence
