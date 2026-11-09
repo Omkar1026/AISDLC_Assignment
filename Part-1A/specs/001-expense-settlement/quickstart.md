@@ -54,7 +54,8 @@ default. Importing `src/app.js` from tests must not start a listener.
 8. Send `DELETE /reset` and verify HTTP 200; later balance and settlement
    reads are empty.
 9. Verify every response includes `Content-Type: application/json` and
-   `X-Content-Type-Options: nosniff`.
+   `X-Content-Type-Options: nosniff`; balance and settlement responses also
+   include `Cache-Control: no-store`.
 
 See [the OpenAPI contract](./contracts/openapi.yaml) for request and response
 shapes and [the data model](./data-model.md) for calculation invariants.

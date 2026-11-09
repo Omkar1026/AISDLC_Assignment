@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "status": "failed",
+  "startedAt": "2026-11-09T16:59:44.024Z",
+  "completedAt": "2026-11-09T16:59:45.927Z",
+  "gates": [
+    {
+      "id": "lint-guard",
+      "name": "Syntax & Lint Guard",
+      "command": [
+        "node",
+        ".harness/lint.js"
+      ],
+      "required": true,
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "Lint passed for 6 file(s).\n",
+      "stderr": "",
+      "error": null,
+      "durationMs": 1081
+    },
+    {
+      "id": "security-sast-guard",
+      "name": "Security / SAST Guard",
+      "command": [
+        "node",
+        ".harness/security-scan.js"
+      ],
+      "required": true,
+      "status": "failed",
+      "exitCode": 1,
+      "signal": null,
+      "stdout": "",
+      "stderr": "Security / SAST Guard failed:\n- Cache-Control: no-store must be set for financial API responses\n",
+      "error": null,
+      "durationMs": 175
+    },
+    {
+      "id": "contract-unit-test",
+      "name": "Unit & Contract Tests",
+      "command": [
+        "node",
+        "--test",
+        "tests/app.test.js"
+      ],
+      "required": true,
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "✔ importing src/app.js does not bind a listener and uses a configurable port (2.9545ms)\n✔ POST /expenses validates and records EQUAL and EXACT expenses (79.806ms)\n✔ POST /expenses rejects invalid requests without changing the ledger (76.7218ms)\n✔ POST /expenses accepts the maximum amount (6.7642ms)\n✔ ledger rejects an unsafe aggregate atomically (1.2017ms)\n✔ GET /balances includes payers and participants with correct zero-sum signs (16.0956ms)\n✔ GET /settle returns deterministic largest-first transfers and settles balances (17.3282ms)\n✔ GET /settle applies alphabetical tie-breaking for debtors and creditors (13.9103ms)\n✔ GET /settle returns an empty plan when the ledger has no debts (6.5516ms)\n✔ DELETE /reset clears populated and already-empty ledgers (13.4682ms)\n✔ all endpoints enforce response headers, 404 behavior, and the 10KB body limit (16.5161ms)\nℹ tests 11\nℹ suites 0\nℹ pass 11\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 461.1025\n",
+      "stderr": "",
+      "error": null,
+      "durationMs": 645
+    }
+  ]
+}

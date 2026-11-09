@@ -220,7 +220,8 @@ subsequent balance and settlement responses are empty.
   (10,240 bytes) with HTTP 413 and a JSON object shaped as
   `{ "error": "..." }` before route processing or ledger mutation.
 - **FR-014**: Every response MUST set `Content-Type: application/json` and
-  `X-Content-Type-Options: nosniff`.
+  `X-Content-Type-Options: nosniff`. Responses containing financial data,
+  including balances and settlement plans, MUST set `Cache-Control: no-store`.
 - **FR-015**: The service MUST keep ledger state in memory only, provide no
   authentication, and use no external database.
 - **FR-016**: The service MUST run on Node.js 20 or later, use CommonJS and
@@ -242,8 +243,8 @@ subsequent balance and settlement responses are empty.
 | Valid `POST /expenses` with `EQUAL` split | HTTP 201; response contains a unique `id` and a `shares` object with one two-decimal share for every participant; ledger updates once |
 | Valid `POST /expenses` with `EXACT` shares whose sum differs from amount by at most 0.001 and whose rounded shares sum to the rounded amount | HTTP 201; response contains the `id` and a `shares` object with the supplied rounded share for every participant |
 | Missing required field, malformed JSON, wrong field type, non-positive amount, amount above 1,000,000,000.00, self-only or duplicate participants, or inconsistent split | HTTP 400; JSON body has string `error`; ledger is unchanged |
-| Valid `GET /balances` | HTTP 200; response contains a `balances` object; every recorded participant and payer has a value with two decimal places and the correct sign; all net balances sum to 0.00 |
-| Valid `GET /settle` | HTTP 200; response is an array of positive, deterministic debtor-to-creditor transfers that settle every balance and meet FR-009's transfer bound |
+| Valid `GET /balances` | HTTP 200; response contains a `balances` object; every recorded participant and payer has a value with two decimal places and the correct sign; all net balances sum to 0.00; `Cache-Control: no-store` is present |
+| Valid `GET /settle` | HTTP 200; response is an array of positive, deterministic debtor-to-creditor transfers that settle every balance and meet FR-009's transfer bound; `Cache-Control: no-store` is present |
 | Valid `DELETE /reset` | HTTP 200; balances and settlement are empty afterward |
 | Unknown path or unsupported method | HTTP 404; JSON body has string `error`; ledger is unchanged |
 | Any request body greater than 10 KB | HTTP 413; JSON body has string `error`; request is not processed and ledger is unchanged |

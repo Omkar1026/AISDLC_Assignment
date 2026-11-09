@@ -86,6 +86,7 @@ function expense(payer, amount, participants, exactShares, description = 'test')
 function assertHeaders(response) {
   assert.equal(response.headers['content-type'], 'application/json');
   assert.equal(response.headers['x-content-type-options'], 'nosniff');
+  assert.equal(response.headers['cache-control'], 'no-store');
 }
 
 async function withServer(t) {

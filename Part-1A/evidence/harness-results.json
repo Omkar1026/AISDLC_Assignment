@@ -1,8 +1,8 @@
 {
   "version": 1,
   "status": "passed",
-  "startedAt": "2026-11-09T16:40:02.375Z",
-  "completedAt": "2026-11-09T16:40:04.498Z",
+  "startedAt": "2026-11-09T17:00:35.792Z",
+  "completedAt": "2026-11-09T17:00:37.631Z",
   "gates": [
     {
       "id": "lint-guard",
@@ -18,7 +18,7 @@
       "stdout": "Lint passed for 6 file(s).\n",
       "stderr": "",
       "error": null,
-      "durationMs": 1238
+      "durationMs": 1062
     },
     {
       "id": "security-sast-guard",
@@ -34,7 +34,7 @@
       "stdout": "Security / SAST Guard passed for 5 source file(s).\n",
       "stderr": "",
       "error": null,
-      "durationMs": 198
+      "durationMs": 170
     },
     {
       "id": "contract-unit-test",
@@ -48,10 +48,10 @@
       "status": "passed",
       "exitCode": 0,
       "signal": null,
-      "stdout": "✔ importing src/app.js does not bind a listener and uses a configurable port (2.9635ms)\n✔ POST /expenses validates and records EQUAL and EXACT expenses (81.7397ms)\n✔ POST /expenses rejects invalid requests without changing the ledger (78.456ms)\n✔ POST /expenses accepts the maximum amount (9.4862ms)\n✔ ledger rejects an unsafe aggregate atomically (1.3343ms)\n✔ GET /balances includes payers and participants with correct zero-sum signs (14.8561ms)\n✔ GET /settle returns deterministic largest-first transfers and settles balances (19.5376ms)\n✔ GET /settle applies alphabetical tie-breaking for debtors and creditors (12.4793ms)\n✔ GET /settle returns an empty plan when the ledger has no debts (7.517ms)\n✔ DELETE /reset clears populated and already-empty ledgers (17.9339ms)\n✔ all endpoints enforce response headers, 404 behavior, and the 10KB body limit (21.7483ms)\nℹ tests 11\nℹ suites 0\nℹ pass 11\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 491.9886\n",
+      "stdout": "✔ importing src/app.js does not bind a listener and uses a configurable port (4.3507ms)\n✔ POST /expenses validates and records EQUAL and EXACT expenses (75.5936ms)\n✔ POST /expenses rejects invalid requests without changing the ledger (62.9029ms)\n✔ POST /expenses accepts the maximum amount (6.707ms)\n✔ ledger rejects an unsafe aggregate atomically (3.2149ms)\n✔ GET /balances includes payers and participants with correct zero-sum signs (10.4972ms)\n✔ GET /settle returns deterministic largest-first transfers and settles balances (13.5267ms)\n✔ GET /settle applies alphabetical tie-breaking for debtors and creditors (10.4634ms)\n✔ GET /settle returns an empty plan when the ledger has no debts (8.0843ms)\n✔ DELETE /reset clears populated and already-empty ledgers (10.6755ms)\n✔ all endpoints enforce response headers, 404 behavior, and the 10KB body limit (16.6103ms)\nℹ tests 11\nℹ suites 0\nℹ pass 11\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 427.2554\n",
       "stderr": "",
       "error": null,
-      "durationMs": 683
+      "durationMs": 604
     }
   ]
 }

@@ -47,6 +47,7 @@ try {
   const requirements = [
     [new RegExp("setHeader\\s*\\(\\s*['\"]Content-Type['\"]\\s*,\\s*['\"]application/json['\"]"), 'Content-Type: application/json must be set'],
     [new RegExp("setHeader\\s*\\(\\s*['\"]X-Content-Type-Options['\"]\\s*,\\s*['\"]nosniff['\"]"), 'X-Content-Type-Options: nosniff must be set'],
+    [new RegExp("setHeader\\s*\\(\\s*['\"]Cache-Control['\"]\\s*,\\s*['\"]no-store['\"]"), 'Cache-Control: no-store must be set for financial API responses'],
     [new RegExp('MAX_BODY_BYTES\\s*=\\s*10\\s*\\*\\s*1024'), 'the request body limit must be 10KB'],
     [new RegExp('bodySize\\s*>\\s*MAX_BODY_BYTES'), 'streamed request bytes must be checked against the limit'],
     [new RegExp('declaredLength\\s*>\\s*MAX_BODY_BYTES'), 'declared request length must be checked against the limit']

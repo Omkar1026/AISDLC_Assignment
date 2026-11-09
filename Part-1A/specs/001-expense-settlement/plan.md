@@ -40,9 +40,10 @@ Requests and calculations are bounded by the 10 KB request limit and in-memory
 group ledger.
 
 **Constraints**: All HTTP responses are JSON and include
-`X-Content-Type-Options: nosniff`. Reject bodies larger than 10,240 bytes with
-HTTP 413. Reject invalid request data with HTTP 400 and unknown routes/methods
-with HTTP 404. Use integer cents internally and guard all conversions and
+`X-Content-Type-Options: nosniff`. Financial responses include
+`Cache-Control: no-store`. Reject bodies larger than 10,240 bytes with HTTP
+413. Reject invalid request data with HTTP 400 and unknown routes/methods with
+HTTP 404. Use integer cents internally and guard all conversions and
 aggregations against unsafe integer overflow. No fixed port may be bound when
 `src/app.js` is imported. No authentication, external database, `eval()`, or
 `new Function()`.
@@ -65,7 +66,7 @@ amount, share, and accumulated balance.
 | Two-decimal monetary values and exactly zero-sum balances | Pass; integer cents, exact split validation, and balance invariant tests |
 | Server export from `src/app.js` without listening on import | Pass; expose server factory and bind only from executable entry point |
 | No `eval()`, `new Function()`, or hardcoded secrets | Pass; prohibited by implementation and SAST gates |
-| 10 KB maximum request body and required response headers | Pass; enforce while streaming and centrally set headers |
+| 10 KB maximum request body and required response headers | Pass; enforce while streaming and centrally set JSON, nosniff, and no-store headers |
 | Maximum expense amount of 1,000,000,000.00 | Pass; reject larger amounts with HTTP 400 before ledger mutation |
 | Built-in Node test and assertion modules | Pass; tests use `node:test` and `node:assert/strict` |
 | Required `.harness` lint, SAST, and contract/unit-test gates | Pass; `.harness/harness.js` executes all manifest gates and writes `evidence/harness-results.json` |
