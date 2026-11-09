@@ -18,14 +18,17 @@ and unit tests. Add required lint, SAST, and contract-test gates under
 **Language/Version**: Node.js 20+, CommonJS
 
 **Primary Dependencies**: Zero external runtime dependencies; native `http`,
-`node:test`, and `node:assert/strict`. ESLint is development-only; Semgrep is a
-CI/harness security scanner.
+`node:test`, and `node:assert/strict`. ESLint is development-only. A
+project-owned Node.js scanner implements the SAST gate without requiring an
+external Semgrep executable.
 
 **Storage**: Process-local in-memory ledger; no external database or durable
 storage.
 
 **Testing**: `node --test tests/app.test.js`; contract and unit coverage using
-`node:test` and `node:assert/strict`.
+`node:test` and `node:assert/strict`. Lint checks syntax and ESLint rules in
+`src/` and `tests/`. SAST checks prohibited constructs, hardcoded secrets,
+response headers, and request-body limits.
 
 **Target Platform**: Node.js 20+ on supported developer and CI operating
 systems.
@@ -92,6 +95,8 @@ specs/001-expense-settlement/
 .harness/
 ├── quality-gates.json
 ├── semgrep.yml
+├── security-scan.js
+├── lint.js
 └── harness.js
 
 evidence/
@@ -121,8 +126,10 @@ Test gate definitions in `.harness/quality-gates.json`. The Node.js runner
 configured gate without shell interpolation, records command, exit status,
 and output for each gate, writes a JSON report to
 `evidence/harness-results.json`, and exits non-zero if any required gate
-fails. Store the project-owned SAST ruleset at `.harness/semgrep.yml`; the
-manifest schema is documented in `contracts/quality-gates.json`.
+fails. The SAST gate uses `.harness/security-scan.js`; a project-owned
+Semgrep-compatible ruleset is also stored at `.harness/semgrep.yml` for CI
+environments. The manifest schema is documented in
+`contracts/quality-gates.json`.
 
 ## Complexity Tracking
 

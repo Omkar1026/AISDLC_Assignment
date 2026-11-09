@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "status": "passed",
+  "startedAt": "2026-11-09T16:40:02.375Z",
+  "completedAt": "2026-11-09T16:40:04.498Z",
+  "gates": [
+    {
+      "id": "lint-guard",
+      "name": "Syntax & Lint Guard",
+      "command": [
+        "node",
+        ".harness/lint.js"
+      ],
+      "required": true,
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "Lint passed for 6 file(s).\n",
+      "stderr": "",
+      "error": null,
+      "durationMs": 1238
+    },
+    {
+      "id": "security-sast-guard",
+      "name": "Security / SAST Guard",
+      "command": [
+        "node",
+        ".harness/security-scan.js"
+      ],
+      "required": true,
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "Security / SAST Guard passed for 5 source file(s).\n",
+      "stderr": "",
+      "error": null,
+      "durationMs": 198
+    },
+    {
+      "id": "contract-unit-test",
+      "name": "Unit & Contract Tests",
+      "command": [
+        "node",
+        "--test",
+        "tests/app.test.js"
+      ],
+      "required": true,
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "✔ importing src/app.js does not bind a listener and uses a configurable port (2.9635ms)\n✔ POST /expenses validates and records EQUAL and EXACT expenses (81.7397ms)\n✔ POST /expenses rejects invalid requests without changing the ledger (78.456ms)\n✔ POST /expenses accepts the maximum amount (9.4862ms)\n✔ ledger rejects an unsafe aggregate atomically (1.3343ms)\n✔ GET /balances includes payers and participants with correct zero-sum signs (14.8561ms)\n✔ GET /settle returns deterministic largest-first transfers and settles balances (19.5376ms)\n✔ GET /settle applies alphabetical tie-breaking for debtors and creditors (12.4793ms)\n✔ GET /settle returns an empty plan when the ledger has no debts (7.517ms)\n✔ DELETE /reset clears populated and already-empty ledgers (17.9339ms)\n✔ all endpoints enforce response headers, 404 behavior, and the 10KB body limit (21.7483ms)\nℹ tests 11\nℹ suites 0\nℹ pass 11\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 491.9886\n",
+      "stderr": "",
+      "error": null,
+      "durationMs": 683
+    }
+  ]
+}

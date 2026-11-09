@@ -4,23 +4,23 @@
   "gates": [
     {
       "id": "lint-guard",
-      "name": "Lint Guard",
+      "name": "Syntax & Lint Guard",
       "required": true,
-      "command": "npm run lint",
+      "command": ["node", ".harness/lint.js"],
       "failOnNonZero": true
     },
     {
       "id": "security-sast-guard",
-      "name": "Security/SAST Guard",
+      "name": "Security / SAST Guard",
       "required": true,
-      "command": "semgrep scan --config .harness/semgrep.yml --error .",
+      "command": ["node", ".harness/security-scan.js"],
       "failOnNonZero": true
     },
     {
       "id": "contract-unit-test",
-      "name": "Contract/Unit Test",
+      "name": "Unit & Contract Tests",
       "required": true,
-      "command": "node --test tests/app.test.js",
+      "command": ["node", "--test", "tests/app.test.js"],
       "failOnNonZero": true
     }
   ],

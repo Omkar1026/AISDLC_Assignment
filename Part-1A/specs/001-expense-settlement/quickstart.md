@@ -4,7 +4,6 @@
 
 - Node.js 20 or later.
 - npm for installing development-only lint tooling.
-- Semgrep available to the `.harness` runner for the SAST gate.
 
 The service has no external runtime dependencies and stores ledger data only
 for the lifetime of its process.
@@ -17,15 +16,14 @@ From the repository root:
 npm install
 node --test tests/app.test.js
 npm run lint
-semgrep scan --config .harness/semgrep.yml --error .
 node .harness/harness.js
 ```
 
-The harness must run these as required gates: static lint, SAST security, and
+The harness must run these as required gates: syntax/lint, security/SAST, and
 API contract/unit tests. `node .harness/harness.js` executes all three gates
-from `.harness/quality-gates.json`, writes their results to
-`evidence/harness-results.json`, and exits non-zero for a missing tool,
-invalid manifest, or failed required gate.
+from `.harness/quality-gates.json` without shell interpolation, writes results to
+`evidence/harness-results.json`, and exits non-zero for an invalid manifest
+or failed required gate.
 
 ## Run the service
 

@@ -18,10 +18,10 @@
 
 **Purpose**: Initialize CommonJS project tooling and required quality gates.
 
-- [ ] T001 Create `package.json` with CommonJS mode, Node.js 20+ engine, `start`, `test`, and `lint` scripts, no runtime dependencies, and ESLint as a development dependency.
-- [ ] T002 [P] Configure the ESLint recommended rules and CommonJS test/source file patterns in `eslint.config.js`.
-- [ ] T003 [P] Create fail-closed Semgrep rules prohibiting `eval()`, `new Function()`, and hardcoded secrets in `.harness/semgrep.yml`.
-- [ ] T004 [P] Configure `.harness/harness.js` as the runner plus required `lint-guard`, `security-sast-guard`, and `contract-unit-test` commands, `failOnNonZero: true`, and report path `evidence/harness-results.json` in `.harness/quality-gates.json`, matching `specs/001-expense-settlement/contracts/quality-gates.json`.
+- [X] T001 Create `package.json` with CommonJS mode, Node.js 20+ engine, `start`, `test`, and `lint` scripts, no runtime dependencies, and ESLint as a development dependency.
+- [X] T002 [P] Configure the ESLint recommended rules and CommonJS test/source file patterns in `eslint.config.js`.
+- [X] T003 [P] Create fail-closed Semgrep rules prohibiting `eval()`, `new Function()`, and hardcoded secrets in `.harness/semgrep.yml`.
+- [X] T004 [P] Configure `.harness/harness.js` as the runner plus required `lint-guard`, `security-sast-guard`, and `contract-unit-test` commands, `failOnNonZero: true`, and report path `evidence/harness-results.json` in `.harness/quality-gates.json`, matching `specs/001-expense-settlement/contracts/quality-gates.json`.
 
 ---
 
@@ -31,10 +31,10 @@
 
 **Checkpoint**: Complete these tasks before starting user-story implementation.
 
-- [ ] T005 Export an import-safe `createServer` from `src/app.js`; bind only when run directly, set both required JSON/security headers on every response, and reject request streams exceeding 10,240 bytes with HTTP 413 before parsing or routing.
-- [ ] T006 Implement method/path dispatch and a JSON HTTP 404 error for unknown routes and unsupported methods in `src/routes.js`.
-- [ ] T007 Implement finite-number validation, decimal-aware half-up conversion to safe integer cents, two-decimal response conversion, and the confirmed maximum expense amount of 1,000,000,000.00 with HTTP 400 above the limit in `src/validation.js`.
-- [ ] T008 Create the process-local expense ledger and atomic append/balance-update primitives in `src/ledger.js`; reject any update that would produce an unsafe integer balance without mutating state.
+- [X] T005 Export an import-safe `createServer` from `src/app.js`; bind only when run directly, set both required JSON/security headers on every response, and reject request streams exceeding 10,240 bytes with HTTP 413 before parsing or routing.
+- [X] T006 Implement method/path dispatch and a JSON HTTP 404 error for unknown routes and unsupported methods in `src/routes.js`.
+- [X] T007 Implement finite-number validation, decimal-aware half-up conversion to safe integer cents, two-decimal response conversion, and the confirmed maximum expense amount of 1,000,000,000.00 with HTTP 400 above the limit in `src/validation.js`.
+- [X] T008 Create the process-local expense ledger and atomic append/balance-update primitives in `src/ledger.js`; reject any update that would produce an unsafe integer balance without mutating state.
 
 ---
 
@@ -46,14 +46,14 @@
 
 ### Tests for User Story 1
 
-- [ ] T009 [US1] Add `POST /expenses` contract and validation tests in `tests/app.test.js` for EQUAL and EXACT responses; required fields and types; duplicate participants; non-positive/rounded-zero amounts; HTTP 400 above 1,000,000,000.00 and acceptance at the ceiling; malformed JSON; unknown fields; exactShares key mismatch; 0.001 sum tolerance; rounded-share total mismatch; and ledger immutability on failure. Include an EQUAL case splitting 10.00 across 6 participants and assert half-up shares initially total 10.02, the first share absorbs the full -0.02 remainder, and final shares sum to 10.00.
+- [X] T009 [US1] Add `POST /expenses` contract and validation tests in `tests/app.test.js` for EQUAL and EXACT responses; required fields and types; duplicate participants; non-positive/rounded-zero amounts; HTTP 400 above 1,000,000,000.00 and acceptance at the ceiling; malformed JSON; unknown fields; exactShares key mismatch; 0.001 sum tolerance; rounded-share total mismatch; and ledger immutability on failure. Include an EQUAL case splitting 10.00 across 6 participants and assert half-up shares initially total 10.02, the first share absorbs the full -0.02 remainder, and final shares sum to 10.00.
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Validate expense requests in `src/validation.js`: require `payer`, `amount`, `participants`, `description`, and `splitType`; require a trimmed non-empty payer, string description, at least two distinct trimmed non-empty participant names, and `splitType` exactly `EQUAL` or `EXACT`; reject `exactShares` for EQUAL and require it for EXACT.
-- [ ] T011 [US1] Calculate EQUAL shares by half-up rounding each equal portion to cents and assigning the full remainder to the first participant; for EXACT require precisely the participant keys, finite non-negative shares, an unrounded sum within 0.001 of amount, and rounded shares summing exactly to rounded amount in `src/validation.js`.
-- [ ] T012 [US1] Record only validated expenses in `src/ledger.js`, ensuring participant shares sum to total cents, payer credit and participant debits preserve zero-sum balances, the ID is generated only for accepted expenses, and failed validation or overflow leaves state unchanged.
-- [ ] T013 [US1] Implement `POST /expenses` in `src/routes.js` to return HTTP 201 JSON `{ "id": "...", "shares": { "name": 0.00 } }` for valid requests and HTTP 400 JSON `{ "error": "..." }` for invalid requests.
+- [X] T010 [US1] Validate expense requests in `src/validation.js`: require `payer`, `amount`, `participants`, `description`, and `splitType`; require a trimmed non-empty payer, string description, at least two distinct trimmed non-empty participant names, and `splitType` exactly `EQUAL` or `EXACT`; reject `exactShares` for EQUAL and require it for EXACT.
+- [X] T011 [US1] Calculate EQUAL shares by half-up rounding each equal portion to cents and assigning the full remainder to the first participant; for EXACT require precisely the participant keys, finite non-negative shares, an unrounded sum within 0.001 of amount, and rounded shares summing exactly to rounded amount in `src/validation.js`.
+- [X] T012 [US1] Record only validated expenses in `src/ledger.js`, ensuring participant shares sum to total cents, payer credit and participant debits preserve zero-sum balances, the ID is generated only for accepted expenses, and failed validation or overflow leaves state unchanged.
+- [X] T013 [US1] Implement `POST /expenses` in `src/routes.js` to return HTTP 201 JSON `{ "id": "...", "shares": { "name": 0.00 } }` for valid requests and HTTP 400 JSON `{ "error": "..." }` for invalid requests.
 
 **Checkpoint**: Expense creation is independently usable and all invalid requests leave the ledger unchanged.
 
@@ -67,12 +67,12 @@
 
 ### Tests for User Story 2
 
-- [ ] T014 [US2] Add `GET /balances` tests in `tests/app.test.js` for empty and populated ledgers, payer outside the participant list, zero balances, positive/negative signs, two-decimal amounts, and a total net balance of exactly 0.00.
+- [X] T014 [US2] Add `GET /balances` tests in `tests/app.test.js` for empty and populated ledgers, payer outside the participant list, zero balances, positive/negative signs, two-decimal amounts, and a total net balance of exactly 0.00.
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Implement balance aggregation in `src/ledger.js` using integer cents, including every participant and payer seen in accepted expenses and retaining zero balances.
-- [ ] T016 [US2] Implement `GET /balances` in `src/routes.js` to return HTTP 200 JSON `{ "balances": { "name": 0.00 } }` with all ledger names and two-decimal amounts.
+- [X] T015 [US2] Implement balance aggregation in `src/ledger.js` using integer cents, including every participant and payer seen in accepted expenses and retaining zero balances.
+- [X] T016 [US2] Implement `GET /balances` in `src/routes.js` to return HTTP 200 JSON `{ "balances": { "name": 0.00 } }` with all ledger names and two-decimal amounts.
 
 **Checkpoint**: Balance reads are independently verifiable against recorded expense shares and never mutate state.
 
@@ -86,12 +86,12 @@
 
 ### Tests for User Story 3
 
-- [ ] T017 [US3] Add `GET /settle` tests in `tests/app.test.js` for creditor/debtor direction, largest absolute balance first, alphabetical tie-breaking, transfer amounts, repeatability, empty plans, complete balance settlement, and at most `k - 1` transfers for `k` non-zero balances.
+- [X] T017 [US3] Add `GET /settle` tests in `tests/app.test.js` for creditor/debtor direction, largest absolute balance first, alphabetical tie-breaking, transfer amounts, repeatability, empty plans, complete balance settlement, and at most `k - 1` transfers for `k` non-zero balances.
 
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] Implement deterministic greedy settlement in `src/settlement.js`, sorting debtors and creditors by absolute balance descending then case-sensitive alphabetical name, transferring the lesser balance, and emitting only positive cent amounts.
-- [ ] T019 [US3] Implement `GET /settle` in `src/routes.js` to return HTTP 200 with a JSON array of `{ "from": "...", "to": "...", "amount": 0.00 }` transfers and an empty array when no debt remains.
+- [X] T018 [US3] Implement deterministic greedy settlement in `src/settlement.js`, sorting debtors and creditors by absolute balance descending then case-sensitive alphabetical name, transferring the lesser balance, and emitting only positive cent amounts.
+- [X] T019 [US3] Implement `GET /settle` in `src/routes.js` to return HTTP 200 with a JSON array of `{ "from": "...", "to": "...", "amount": 0.00 }` transfers and an empty array when no debt remains.
 
 **Checkpoint**: Settlement is deterministic, leaves no residual balance, and does not mutate the ledger.
 
@@ -105,12 +105,12 @@
 
 ### Tests for User Story 4
 
-- [ ] T020 [US4] Add `DELETE /reset` tests in `tests/app.test.js` for populated and already-empty ledgers, HTTP 200 response, and empty balances and settlement after reset.
+- [X] T020 [US4] Add `DELETE /reset` tests in `tests/app.test.js` for populated and already-empty ledgers, HTTP 200 response, and empty balances and settlement after reset.
 
 ### Implementation for User Story 4
 
-- [ ] T021 [US4] Implement an atomic ledger reset that clears all expenses and derived balances in `src/ledger.js`.
-- [ ] T022 [US4] Implement `DELETE /reset` in `src/routes.js` to clear the ledger and return HTTP 200 JSON confirmation, including when the ledger was already empty.
+- [X] T021 [US4] Implement an atomic ledger reset that clears all expenses and derived balances in `src/ledger.js`.
+- [X] T022 [US4] Implement `DELETE /reset` in `src/routes.js` to clear the ledger and return HTTP 200 JSON confirmation, including when the ledger was already empty.
 
 **Checkpoint**: Reset is repeatable and later reads observe only the fresh empty ledger.
 
@@ -120,12 +120,12 @@
 
 **Purpose**: Verify the full contract, security boundaries, documentation, and required quality gates.
 
-- [ ] T023 [P] Complete cross-endpoint contract tests in `tests/app.test.js` for both required response headers on success and error responses, HTTP 404 routes/methods, exact 10,240-byte acceptance, over-limit 413 rejection, and no mutation after rejected requests.
-- [ ] T024 [P] Add an automated import-safety test in `tests/app.test.js` that imports `createServer` from `src/app.js`, creates a server, and asserts `server.listening === false` without calling `listen`; also verify the executable entry point uses a configurable port.
-- [ ] T025 [P] Verify `specs/001-expense-settlement/contracts/openapi.yaml` matches implemented endpoint paths, methods, request/response shapes, status codes, and required response headers.
-- [ ] T026 Implement `.harness/harness.js` to parse and validate `.harness/quality-gates.json`, run every configured gate command without shell interpolation, record each gate's name, command, status, exit code, and output, create `evidence/` when needed, write `evidence/harness-results.json`, and exit non-zero if any required gate fails.
-- [ ] T027 Run `node .harness/harness.js` and resolve failures in `tests/app.test.js`, `eslint.config.js`, `.harness/semgrep.yml`, `.harness/quality-gates.json`, `.harness/harness.js`, or `evidence/harness-results.json`.
-- [ ] T028 Validate every quickstart scenario in `specs/001-expense-settlement/quickstart.md`, including the harness command and evidence report, and update that file if commands or expected outcomes differ from the implementation.
+- [X] T023 [P] Complete cross-endpoint contract tests in `tests/app.test.js` for both required response headers on success and error responses, HTTP 404 routes/methods, exact 10,240-byte acceptance, over-limit 413 rejection, and no mutation after rejected requests.
+- [X] T024 [P] Add an automated import-safety test in `tests/app.test.js` that imports `createServer` from `src/app.js`, creates a server, and asserts `server.listening === false` without calling `listen`; also verify the executable entry point uses a configurable port.
+- [X] T025 [P] Verify `specs/001-expense-settlement/contracts/openapi.yaml` matches implemented endpoint paths, methods, request/response shapes, status codes, and required response headers.
+- [X] T026 Implement `.harness/harness.js` to parse and validate `.harness/quality-gates.json`, run every configured gate command without shell interpolation, record each gate's name, command, status, exit code, and output, create `evidence/` when needed, write `evidence/harness-results.json`, and exit non-zero if any required gate fails.
+- [X] T027 Run `node .harness/harness.js` and resolve failures in `tests/app.test.js`, `eslint.config.js`, `.harness/semgrep.yml`, `.harness/quality-gates.json`, `.harness/harness.js`, or `evidence/harness-results.json`.
+- [X] T028 Validate every quickstart scenario in `specs/001-expense-settlement/quickstart.md`, including the harness command and evidence report, and update that file if commands or expected outcomes differ from the implementation.
 
 ---
 

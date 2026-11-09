@@ -1,0 +1,16 @@
+rules:
+  - id: no-eval
+    languages: [javascript]
+    severity: ERROR
+    message: Do not use eval().
+    pattern: eval(...)
+  - id: no-new-function
+    languages: [javascript]
+    severity: ERROR
+    message: Do not use new Function().
+    pattern: new Function(...)
+  - id: no-hardcoded-secret
+    languages: [javascript]
+    severity: ERROR
+    message: Do not hardcode credentials or secret tokens.
+    pattern-regex: (?i)(password|secret|api[_-]?key|token)\s*[:=]\s*['"][^'"]{8,}['"]

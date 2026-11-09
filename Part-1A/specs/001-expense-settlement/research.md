@@ -56,10 +56,12 @@ different business ceiling before implementation if needed.
 ## Development quality gates
 
 **Decision**: Keep runtime dependencies empty. Add ESLint as a development
-dependency with its recommended rules, run Semgrep with a pinned JavaScript
-ruleset in the harness/CI environment, and run built-in contract tests with
-`node --test tests/app.test.js`. The `.harness/quality-gates.json` manifest
-declares each gate as required and must treat any non-zero exit as failure.
+dependency with its recommended rules, use a project-owned Node.js scanner
+for security checks that must run without an external Semgrep installation,
+and run built-in contract tests with `node --test tests/app.test.js`. Keep
+Semgrep-compatible rules in `.harness/semgrep.yml` for CI environments. The
+`.harness/quality-gates.json` manifest declares each gate as required and must
+treat any non-zero exit as failure.
 
 **Rationale**: Static lint catches common code defects and consistency issues;
 SAST provides a separate security-focused scan; contract tests verify exact
@@ -71,8 +73,9 @@ from runtime preserves zero external runtime dependencies.
   unnecessary runtime attack surface and deployment weight.
 - Relying on tests alone for security: rejected because tests do not provide
   static security pattern analysis.
-- Using an unpinned SAST ruleset: rejected because rule changes can make the
-  gate nondeterministic.
+- Requiring a globally installed Semgrep executable: rejected because it is
+  not part of the repository toolchain and would make the required harness
+  fail in environments without Semgrep.
 
 **References**:
 - [ESLint rules](https://eslint.org/docs/latest/rules/)
@@ -85,11 +88,12 @@ from runtime preserves zero external runtime dependencies.
 **Decision**: Use a project-owned JSON manifest at
 `.harness/quality-gates.json` with three required named gates: `lint-guard`,
 `security-sast-guard`, and `contract-unit-test`. The Node.js runner
-`.harness/harness.js` reads the manifest, executes each command without shell
-interpolation, writes per-gate outcomes to `evidence/harness-results.json`,
-and exits non-zero if any required gate fails. A matching sample manifest is
-included in `contracts/quality-gates.json`. Store the Semgrep ruleset at
-`.harness/semgrep.yml` and keep rule changes reviewed.
+`.harness/harness.js` reads the manifest, executes each argument-array command
+without a shell, writes per-gate outcomes to `evidence/harness-results.json`,
+and exits non-zero if any required gate fails. The project-owned SAST scanner
+checks banned code patterns and required HTTP protections; a matching sample
+manifest is included in `contracts/quality-gates.json`. Store
+Semgrep-compatible rules at `.harness/semgrep.yml` for optional CI use.
 
 **Rationale**: No `.harness` directory or existing manifest schema is present
 in the repository. A small explicit manifest avoids assuming an unavailable

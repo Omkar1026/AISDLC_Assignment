@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "runner": ".harness/harness.js",
+  "gates": [
+    {
+      "id": "lint-guard",
+      "name": "Syntax & Lint Guard",
+      "required": true,
+      "command": ["node", ".harness/lint.js"],
+      "failOnNonZero": true
+    },
+    {
+      "id": "security-sast-guard",
+      "name": "Security / SAST Guard",
+      "required": true,
+      "command": ["node", ".harness/security-scan.js"],
+      "failOnNonZero": true
+    },
+    {
+      "id": "contract-unit-test",
+      "name": "Unit & Contract Tests",
+      "required": true,
+      "command": ["node", "--test", "tests/app.test.js"],
+      "failOnNonZero": true
+    }
+  ],
+  "reportPath": "evidence/harness-results.json"
+}
