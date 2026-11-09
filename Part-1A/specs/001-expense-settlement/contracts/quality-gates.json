@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "gates": [
+    {
+      "id": "static-lint",
+      "required": true,
+      "command": "npm run lint",
+      "failOnNonZero": true
+    },
+    {
+      "id": "sast-security",
+      "required": true,
+      "command": "semgrep scan --config .harness/semgrep.yml --error .",
+      "failOnNonZero": true
+    },
+    {
+      "id": "api-contract",
+      "required": true,
+      "command": "node --test tests/app.test.js",
+      "failOnNonZero": true
+    }
+  ]
+}
