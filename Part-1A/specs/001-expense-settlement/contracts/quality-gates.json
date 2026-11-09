@@ -1,23 +1,28 @@
 {
   "version": 1,
+  "runner": ".harness/harness.js",
   "gates": [
     {
-      "id": "static-lint",
+      "id": "lint-guard",
+      "name": "Lint Guard",
       "required": true,
       "command": "npm run lint",
       "failOnNonZero": true
     },
     {
-      "id": "sast-security",
+      "id": "security-sast-guard",
+      "name": "Security/SAST Guard",
       "required": true,
       "command": "semgrep scan --config .harness/semgrep.yml --error .",
       "failOnNonZero": true
     },
     {
-      "id": "api-contract",
+      "id": "contract-unit-test",
+      "name": "Contract/Unit Test",
       "required": true,
       "command": "node --test tests/app.test.js",
       "failOnNonZero": true
     }
-  ]
+  ],
+  "reportPath": "evidence/harness-results.json"
 }

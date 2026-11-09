@@ -6,7 +6,8 @@
 - Request amounts are finite JSON numbers and are converted with decimal-aware
   half-up rounding.
 - Expense amount must round to at least one cent and must not exceed the
-  planned ceiling of 1,000,000,000.00 currency units.
+  confirmed maximum of 1,000,000,000.00 currency units; a greater amount
+  receives HTTP 400.
 - Every sum and balance update must remain a safe integer in cents. Reject an
   expense before mutating state if any resulting aggregate would overflow.
 - JSON monetary output is expressed in currency units rounded to exactly two

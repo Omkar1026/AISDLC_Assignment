@@ -148,6 +148,7 @@ components:
           minimum: 0
           exclusiveMinimum: true
           maximum: 1000000000
+          description: Amount must not exceed 1,000,000,000.00; greater values receive HTTP 400.
         participants:
           type: array
           minItems: 2
@@ -163,7 +164,7 @@ components:
           description: EXACT requires exactShares; EQUAL rejects exactShares.
         exactShares:
           type: object
-          description: For EXACT, keys must match participants; rounded shares must total amount.
+          description: For EXACT, keys must match participants; unrounded sum tolerance is 0.001 and cent-rounded shares must total the rounded amount.
           additionalProperties:
             type: number
             minimum: 0
@@ -207,7 +208,7 @@ components:
           type: string
   responses:
     BadRequest:
-      description: Invalid JSON or expense fields; ledger remains unchanged.
+      description: Invalid JSON or expense fields, including amounts above 1,000,000,000.00; ledger remains unchanged.
       headers:
         Content-Type:
           schema:

@@ -46,10 +46,9 @@ aggregations against unsafe integer overflow. No fixed port may be bound when
 
 **Scale/Scope**: One in-memory ledger per running process; no multi-group
 isolation, persistence, or horizontal shared state. An initial technical
-ceiling of 1,000,000,000.00 currency units per expense is proposed to keep
-cent arithmetic exact with JavaScript numbers; enforce safe-integer checks on
-every accumulated balance as well. This ceiling is a documented assumption,
-not a domain requirement from the feature request.
+ceiling of 1,000,000,000.00 currency units per expense is required; larger
+amounts receive HTTP 400. Enforce safe-integer checks on every converted
+amount, share, and accumulated balance.
 
 ## Constitution Check
 
@@ -64,12 +63,13 @@ not a domain requirement from the feature request.
 | Server export from `src/app.js` without listening on import | Pass; expose server factory and bind only from executable entry point |
 | No `eval()`, `new Function()`, or hardcoded secrets | Pass; prohibited by implementation and SAST gates |
 | 10 KB maximum request body and required response headers | Pass; enforce while streaming and centrally set headers |
+| Maximum expense amount of 1,000,000,000.00 | Pass; reject larger amounts with HTTP 400 before ledger mutation |
 | Built-in Node test and assertion modules | Pass; tests use `node:test` and `node:assert/strict` |
-| Requested `.harness` lint, SAST, and contract gates | Pass; define required fail-closed gates separately from runtime |
+| Required `.harness` lint, SAST, and contract/unit-test gates | Pass; `.harness/harness.js` executes all manifest gates and writes `evidence/harness-results.json` |
 
-No constitution violations are identified. The proposed per-expense ceiling
-and overflow rejection are safety controls to make the money representation
-well-defined; they do not add dependencies or alter the specified routes.
+No constitution violations are identified. The per-expense ceiling and
+overflow rejection bound cent arithmetic and preserve the zero-sum invariant
+without adding runtime dependencies or altering the specified routes.
 
 ## Project Structure
 
@@ -91,7 +91,11 @@ specs/001-expense-settlement/
 ```text
 .harness/
 ├── quality-gates.json
-└── semgrep.yml
+├── semgrep.yml
+└── harness.js
+
+evidence/
+└── harness-results.json
 
 src/
 ├── app.js
@@ -111,11 +115,14 @@ eslint.config.js
 from `src/app.js`. Keep route dispatch, request validation, in-memory ledger
 operations, and settlement calculation in separate modules. Use one built-in
 test file as requested, with clearly separated unit and HTTP-contract test
-groups. Store the harness gate manifest in `.harness/quality-gates.json`;
-it declares required lint, SAST, and contract-test commands and fails the gate
-on a non-zero command result. Store the project-owned SAST ruleset at
-`.harness/semgrep.yml`; the proposed manifest contract is documented in
-`contracts/quality-gates.json`.
+groups. Store the required Lint Guard, Security/SAST Guard, and Contract/Unit
+Test gate definitions in `.harness/quality-gates.json`. The Node.js runner
+`.harness/harness.js` reads and validates that manifest, executes every
+configured gate without shell interpolation, records command, exit status,
+and output for each gate, writes a JSON report to
+`evidence/harness-results.json`, and exits non-zero if any required gate
+fails. Store the project-owned SAST ruleset at `.harness/semgrep.yml`; the
+manifest schema is documented in `contracts/quality-gates.json`.
 
 ## Complexity Tracking
 

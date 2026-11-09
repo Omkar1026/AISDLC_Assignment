@@ -18,11 +18,14 @@ npm install
 node --test tests/app.test.js
 npm run lint
 semgrep scan --config .harness/semgrep.yml --error .
+node .harness/harness.js
 ```
 
 The harness must run these as required gates: static lint, SAST security, and
-API contract tests. Any missing tool, invalid manifest, or non-zero gate result
-fails validation.
+API contract/unit tests. `node .harness/harness.js` executes all three gates
+from `.harness/quality-gates.json`, writes their results to
+`evidence/harness-results.json`, and exits non-zero for a missing tool,
+invalid manifest, or failed required gate.
 
 ## Run the service
 

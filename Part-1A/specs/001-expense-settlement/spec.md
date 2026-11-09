@@ -16,8 +16,8 @@
 - Q: How should `EXACT` split totals be validated? → A: Accept when the sum of `exactShares` differs from `amount` by no more than 0.001; otherwise return HTTP 400.
 - Q: How should settlement ties be ordered? → A: Sort debtors and creditors by absolute balance descending, then alphabetically by name.
 - Q: How should equal-split shares be rounded? → A: Round each share to two decimal places using standard half-up rounding, then assign the full remainder, even when it exceeds one cent, to the first listed participant so shares sum to the total expense amount.
-- Q: If half-up rounding leaves more than one cent to reconcile in an equal split, how should it be handled? → A: Assign the full remainder to the first listed participant.
 - Q: If `EXACT` shares are within the 0.001 tolerance before rounding but do not sum to the rounded expense after each share is rounded to cents, what should happen? → A: Reject the request with HTTP 400.
+- Q: What is the maximum accepted expense amount? → A: 1,000,000,000.00 currency units; reject larger amounts with HTTP 400.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -39,15 +39,21 @@ created expense ID and shares for all participants.
    participants, **When** it is recorded, **Then** the response is HTTP 201
    with an expense ID and a `shares` object mapping each participant to a
    share rounded to two decimal places.
-2. **Given** a valid exact-split expense whose shares sum to its amount,
-   **When** it is recorded, **Then** the response is HTTP 201 with the exact
-   shares rounded to two decimal places in a JSON object containing `id` and
-   `shares`.
-3. **Given** a request with a missing required field, invalid field type,
-   non-positive amount, invalid split, or malformed JSON, **When** it is
+2. **Given** an exact-split expense whose unrounded shares differ from the
+   submitted amount by no more than 0.001 and whose individually rounded
+   cent-shares sum exactly to the rounded expense amount, **When** it is
+   recorded, **Then** the response is HTTP 201 with the exact shares rounded
+   to two decimal places in a JSON object containing `id` and `shares`.
+3. **Given** an exact-split expense whose unrounded shares differ from the
+   amount by more than 0.001 or whose individually rounded cent-shares do not
+   sum exactly to the rounded expense amount, **When** it is submitted,
+   **Then** the response is HTTP 400 and no expense is recorded.
+4. **Given** a request with a missing required field, invalid field type,
+   non-positive amount, amount above 1,000,000,000.00, invalid split, or
+   malformed JSON, **When** it is
    submitted, **Then** the response is HTTP 400 with a JSON `{ "error": "..." }`
    object and no expense is recorded.
-4. **Given** a request body larger than 10 KB, **When** it is submitted,
+5. **Given** a request body larger than 10 KB, **When** it is submitted,
    **Then** the response is HTTP 413 and no expense is recorded.
 
 ---
@@ -157,11 +163,12 @@ subsequent balance and settlement responses are empty.
   `splitType` is `EQUAL` or `EXACT`.
 - **FR-002**: The service MUST accept `POST /expenses` only when `payer` and
   `description` are strings, `payer` is non-empty after trimming, `amount` is
-  a finite positive number, and `participants` is an array of at least two
-  distinct non-empty strings after trimming. Duplicate participants MUST be
-  rejected. The service MUST reject missing required fields, wrong types,
-  self-only splits, and amounts that round to 0.00 with HTTP 400 and a JSON
-  error object.
+  a finite positive number no greater than 1,000,000,000.00, and
+  `participants` is an array of at least two distinct non-empty strings after
+  trimming. Duplicate participants MUST be rejected. The service MUST reject
+  missing required fields, wrong types, self-only splits, amounts that round
+  to 0.00, and amounts above 1,000,000,000.00 with HTTP 400 and a JSON error
+  object.
 - **FR-003**: For an `EQUAL` split, the service MUST divide the rounded amount
   equally among all listed participants, round each share to two decimal
   places using standard half-up rounding, and assign the full resulting
@@ -234,7 +241,7 @@ subsequent balance and settlement responses are empty.
 |---|---|
 | Valid `POST /expenses` with `EQUAL` split | HTTP 201; response contains a unique `id` and a `shares` object with one two-decimal share for every participant; ledger updates once |
 | Valid `POST /expenses` with `EXACT` shares whose sum differs from amount by at most 0.001 and whose rounded shares sum to the rounded amount | HTTP 201; response contains the `id` and a `shares` object with the supplied rounded share for every participant |
-| Missing required field, malformed JSON, wrong field type, non-positive amount, self-only or duplicate participants, or inconsistent split | HTTP 400; JSON body has string `error`; ledger is unchanged |
+| Missing required field, malformed JSON, wrong field type, non-positive amount, amount above 1,000,000,000.00, self-only or duplicate participants, or inconsistent split | HTTP 400; JSON body has string `error`; ledger is unchanged |
 | Valid `GET /balances` | HTTP 200; response contains a `balances` object; every recorded participant and payer has a value with two decimal places and the correct sign; all net balances sum to 0.00 |
 | Valid `GET /settle` | HTTP 200; response is an array of positive, deterministic debtor-to-creditor transfers that settle every balance and meet FR-009's transfer bound |
 | Valid `DELETE /reset` | HTTP 200; balances and settlement are empty afterward |
@@ -284,6 +291,10 @@ subsequent balance and settlement responses are empty.
   rounding. Expense amounts are rounded to cents before split calculation;
   exact shares are rounded to cents before their sum is compared with the
   rounded expense amount.
+- The maximum accepted expense amount is 1,000,000,000.00 currency units;
+  larger amounts receive HTTP 400. This ceiling bounds individual cent
+  conversions while ledger aggregates are separately checked for safe
+  integer overflow.
 - The 10 KB request-body limit means 10,240 bytes; a body of exactly 10,240
   bytes is within the limit.
 - Equal shares use standard half-up rounding; the full remainder, including

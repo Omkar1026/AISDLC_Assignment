@@ -21,7 +21,7 @@
 - [ ] T001 Create `package.json` with CommonJS mode, Node.js 20+ engine, `start`, `test`, and `lint` scripts, no runtime dependencies, and ESLint as a development dependency.
 - [ ] T002 [P] Configure the ESLint recommended rules and CommonJS test/source file patterns in `eslint.config.js`.
 - [ ] T003 [P] Create fail-closed Semgrep rules prohibiting `eval()`, `new Function()`, and hardcoded secrets in `.harness/semgrep.yml`.
-- [ ] T004 [P] Configure required `static-lint`, `sast-security`, and `api-contract` commands with non-zero failure behavior in `.harness/quality-gates.json`, matching `specs/001-expense-settlement/contracts/quality-gates.json`.
+- [ ] T004 [P] Configure `.harness/harness.js` as the runner plus required `lint-guard`, `security-sast-guard`, and `contract-unit-test` commands, `failOnNonZero: true`, and report path `evidence/harness-results.json` in `.harness/quality-gates.json`, matching `specs/001-expense-settlement/contracts/quality-gates.json`.
 
 ---
 
@@ -33,7 +33,7 @@
 
 - [ ] T005 Export an import-safe `createServer` from `src/app.js`; bind only when run directly, set both required JSON/security headers on every response, and reject request streams exceeding 10,240 bytes with HTTP 413 before parsing or routing.
 - [ ] T006 Implement method/path dispatch and a JSON HTTP 404 error for unknown routes and unsupported methods in `src/routes.js`.
-- [ ] T007 Implement finite-number validation, decimal-aware half-up conversion to safe integer cents, two-decimal response conversion, and the planned maximum expense amount of 1,000,000,000.00 in `src/validation.js`.
+- [ ] T007 Implement finite-number validation, decimal-aware half-up conversion to safe integer cents, two-decimal response conversion, and the confirmed maximum expense amount of 1,000,000,000.00 with HTTP 400 above the limit in `src/validation.js`.
 - [ ] T008 Create the process-local expense ledger and atomic append/balance-update primitives in `src/ledger.js`; reject any update that would produce an unsafe integer balance without mutating state.
 
 ---
@@ -46,7 +46,7 @@
 
 ### Tests for User Story 1
 
-- [ ] T009 [US1] Add `POST /expenses` contract and validation tests in `tests/app.test.js` for EQUAL and EXACT responses, required fields and types, duplicate participants, non-positive/rounded-zero amounts, malformed JSON, unknown fields, exactShares key mismatch, 0.001 sum tolerance, rounded-share total mismatch, and ledger immutability on failure.
+- [ ] T009 [US1] Add `POST /expenses` contract and validation tests in `tests/app.test.js` for EQUAL and EXACT responses; required fields and types; duplicate participants; non-positive/rounded-zero amounts; HTTP 400 above 1,000,000,000.00 and acceptance at the ceiling; malformed JSON; unknown fields; exactShares key mismatch; 0.001 sum tolerance; rounded-share total mismatch; and ledger immutability on failure. Include an EQUAL case splitting 10.00 across 6 participants and assert half-up shares initially total 10.02, the first share absorbs the full -0.02 remainder, and final shares sum to 10.00.
 
 ### Implementation for User Story 1
 
@@ -121,10 +121,11 @@
 **Purpose**: Verify the full contract, security boundaries, documentation, and required quality gates.
 
 - [ ] T023 [P] Complete cross-endpoint contract tests in `tests/app.test.js` for both required response headers on success and error responses, HTTP 404 routes/methods, exact 10,240-byte acceptance, over-limit 413 rejection, and no mutation after rejected requests.
-- [ ] T024 [P] Verify `src/app.js` imports without opening a listening port and that the executable entry point reads a configurable port without binding a fixed port in `src/app.js`.
+- [ ] T024 [P] Add an automated import-safety test in `tests/app.test.js` that imports `createServer` from `src/app.js`, creates a server, and asserts `server.listening === false` without calling `listen`; also verify the executable entry point uses a configurable port.
 - [ ] T025 [P] Verify `specs/001-expense-settlement/contracts/openapi.yaml` matches implemented endpoint paths, methods, request/response shapes, status codes, and required response headers.
-- [ ] T026 Run `node --test tests/app.test.js`, `npm run lint`, and the required gates in `.harness/quality-gates.json`; resolve failures in `tests/app.test.js`, `eslint.config.js`, `.harness/semgrep.yml`, or `.harness/quality-gates.json`.
-- [ ] T027 Validate every quickstart scenario in `specs/001-expense-settlement/quickstart.md` and update that file if commands or expected outcomes differ from the implementation.
+- [ ] T026 Implement `.harness/harness.js` to parse and validate `.harness/quality-gates.json`, run every configured gate command without shell interpolation, record each gate's name, command, status, exit code, and output, create `evidence/` when needed, write `evidence/harness-results.json`, and exit non-zero if any required gate fails.
+- [ ] T027 Run `node .harness/harness.js` and resolve failures in `tests/app.test.js`, `eslint.config.js`, `.harness/semgrep.yml`, `.harness/quality-gates.json`, `.harness/harness.js`, or `evidence/harness-results.json`.
+- [ ] T028 Validate every quickstart scenario in `specs/001-expense-settlement/quickstart.md`, including the harness command and evidence report, and update that file if commands or expected outcomes differ from the implementation.
 
 ---
 
@@ -132,7 +133,7 @@
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies; package, lint, and gate files are separate.
+- **Setup (Phase 1)**: No dependencies; package, lint, and gate manifest setup can begin immediately. The runner is implemented in T026 before its first execution in T027.
 - **Foundational (Phase 2)**: Depends on project setup; blocks all user stories.
 - **US1 (Phase 3)**: Depends on the HTTP, money, and ledger foundation.
 - **US2 (Phase 4)**: Depends on US1 to create a populated ledger for its primary test; empty-state tests can be prepared independently.
@@ -158,7 +159,7 @@
 - T002, T003, and T004 can run in parallel after T001 because they modify different files.
 - After Phase 2, US1 implementation is sequential because tasks share validation, ledger, and route modules.
 - US2 through US4 have behavioral dependencies on US1 data; their empty-state or test scaffolding may be prepared separately, but route implementations should follow their prerequisites.
-- During polish, T023, T024, and T025 touch separate files and can proceed in parallel; T026 and T027 follow completed implementation and contract review.
+- During polish, T023, T024, and T025 touch separate files and can proceed in parallel. T026 must finish before T027; T028 follows successful implementation and gate review.
 
 ## Parallel Example: Setup
 
@@ -174,7 +175,7 @@ Task: T004 Define required gates in .harness/quality-gates.json
 ```text
 After all user stories:
 Task: T023 Complete cross-endpoint contract coverage in tests/app.test.js
-Task: T024 Verify import safety in src/app.js
+Task: T024 Add automated import-safety assertion in tests/app.test.js
 Task: T025 Compare the implementation with specs/001-expense-settlement/contracts/openapi.yaml
 ```
 

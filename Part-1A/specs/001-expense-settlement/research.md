@@ -28,11 +28,11 @@ create a server without an implicit port listener.
 
 **Decision**: Convert accepted monetary values to integer cents at the
 validation boundary. Use decimal-aware half-up conversion, require a positive
-expense amount, enforce the plan's conservative 1,000,000,000.00 per-expense
-ceiling, and verify all accumulated cents remain safe integers before
-committing an expense. Reconcile equal-split rounding remainder to the first
-participant. For `EXACT`, enforce the specified 0.001 unrounded-sum tolerance
-and also require rounded shares to sum exactly to the rounded expense total.
+expense amount no greater than 1,000,000,000.00, and verify all accumulated
+cents remain safe integers before committing an expense. Reconcile
+equal-split rounding remainder to the first participant. For `EXACT`, enforce
+the specified 0.001 unrounded-sum tolerance and also require rounded shares
+to sum exactly to the rounded expense total.
 
 **Rationale**: Binary floating-point arithmetic must not create or destroy
 money. Bounded integer-cent arithmetic supports exact balances and deterministic
@@ -83,12 +83,13 @@ from runtime preserves zero external runtime dependencies.
 ## Harness manifest
 
 **Decision**: Use a project-owned JSON manifest at
-`.harness/quality-gates.json` with three required named gates: `static-lint`,
-`sast-security`, and `api-contract`. Each gate records its command and
-`failOnNonZero: true`. A matching sample manifest is included in
-`contracts/quality-gates.json`. The harness runner must reject a missing
-command, unknown gate, or invalid manifest rather than report success. Store
-the Semgrep ruleset at `.harness/semgrep.yml` and keep rule changes reviewed.
+`.harness/quality-gates.json` with three required named gates: `lint-guard`,
+`security-sast-guard`, and `contract-unit-test`. The Node.js runner
+`.harness/harness.js` reads the manifest, executes each command without shell
+interpolation, writes per-gate outcomes to `evidence/harness-results.json`,
+and exits non-zero if any required gate fails. A matching sample manifest is
+included in `contracts/quality-gates.json`. Store the Semgrep ruleset at
+`.harness/semgrep.yml` and keep rule changes reviewed.
 
 **Rationale**: No `.harness` directory or existing manifest schema is present
 in the repository. A small explicit manifest avoids assuming an unavailable
