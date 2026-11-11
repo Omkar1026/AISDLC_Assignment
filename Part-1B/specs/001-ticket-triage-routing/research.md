@@ -5,11 +5,12 @@
 ### Gemini API transport
 
 - **Decision**: Call the Gemini `generateContent` REST endpoint with Node.js 20's native
-  `fetch`; submit the model in the endpoint path and the request body as JSON. Send
-  `GEMINI_API_KEY` in the `x-goog-api-key` header.
+  `fetch`; normalize the configured model by removing a leading `models/`, submit it in
+  the endpoint path, and send `GEMINI_API_KEY` as an encoded `key` query parameter.
 - **Rationale**: Native `fetch` satisfies the zero-runtime-dependency constitution. The
-  header avoids placing credentials in URLs, which are commonly exposed in request logs
-  and diagnostics. The model identifier is configured through `LLM_MODEL`.
+  API key is read from `.env` or process environment and is never logged or written to
+  evidence; request URLs containing it must not be emitted in diagnostics. The model
+  identifier defaults to `gemini-2.5-flash` and is configurable through `LLM_MODEL`.
 - **Alternatives considered**: Google's `@google/genai` SDK is recommended for general
   application integration and provides automatic retry behavior, but it violates the
   zero external runtime dependency requirement and risks duplicating retries.
@@ -23,12 +24,14 @@
 
 - **Decision**: Make at most three total attempts for HTTP 429/503 or transient network
   errors. Apply exponential backoff with jitter, honor a valid server retry hint when
-  present, and stop scheduling attempts when the overall 10-second request deadline
-  would be exceeded. Do not retry permanent 4xx responses. A deadline expiration is a
-  typed external timeout, not an HTTP status or triage decision.
+  present, and stop scheduling attempts when the overall 10-second wall-clock safety
+  deadline would be exceeded. Do not retry permanent 4xx responses. A deadline
+  expiration is a typed external timeout, not an HTTP status or triage decision.
 - **Rationale**: Bounded retries can recover from temporary service throttling/outage
-  without creating an unbounded delay or retry storm. A single overall deadline aligns
-  with SC-008; the finite attempt cap protects the external quota. Google documents
+  without creating an unbounded delay or retry storm. SC-008 measures cumulative
+  per-attempt API round-trip time and excludes local pacing/backoff waits; the separate
+  wall-clock deadline bounds the complete request including those waits. The finite
+  attempt cap protects the external quota. Google documents
   bounded retries with jitter and lists transient statuses; its recommended delays are
   examples rather than a required policy.
 - **Alternatives considered**: Unbounded retries or retries of all 4xx statuses are
@@ -82,6 +85,7 @@
   bodies defensively and report the HTTP status when available.
 - The model and the actual project quota are deployment configuration. Do not assume the
   sample model in `.env.example` defines a permanent supported model or quota.
-- The ten-second response target is an end-to-end acceptance target. Retry delays and
-  queue wait must fit inside the bounded request deadline; it is not permission to hide
-  slow external calls.
+- The SC-008 ten-second latency target measures cumulative Gemini HTTP attempt time from
+  dispatch through complete response-body receipt, excluding local pacing/backoff waits.
+  Retry delays and queue wait must still fit inside the separate bounded wall-clock
+  safety deadline; this definition is not permission to hide slow external calls.

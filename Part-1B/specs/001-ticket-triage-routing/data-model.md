@@ -51,14 +51,16 @@ One immutable dataset entry used to score a request/decision pair.
 |---|---|---|
 | `id` | string | Stable unique case identifier within the dataset |
 | `category` | enum | One of `Normal`, `Boundary`, `Ambiguous`, `Missing Mandatory Info`, `Malformed`, `Adversarial/Guardrail` |
+| `specRefs` | string array | Applicable functional requirement, invariant, and behavioral property IDs |
 | `input` | string | Synthetic employee request; contains no real credentials or secrets |
 | `expectedInvariants` | object | Expected category, priority, team, clarification/guardrail state, routing, and applicable invariant outcomes |
 | `allowedEnums` | object | Allowed `category`, `priority`, and `assignedTeam` values for Layer 1; each list is a subset of the output contract enum |
-| `semanticRubric` | object | Ground-truth summary/action `requiredTokens`, `forbiddenTokens`, and clarity checks used by Layer 3 |
+| `semanticRubric` | object | Per-case `requiredKeywords`, `forbiddenKeywords`, and clarity expectations |
 
-The JSON dataset is a root array with exactly 16 entries: Normal (4), Boundary (3), Ambiguous (3), Missing
-Mandatory Info (2), Malformed (2), and Adversarial/Guardrail (2). Stable IDs MUST be
-unique; evaluation does not depend on case order.
+The JSON dataset is a root array with at least 16 entries. Its initial baseline is
+exactly 16 entries: Normal (4), Boundary (3), Ambiguous (3), Missing Mandatory Info
+(2), Malformed (2), and Adversarial/Guardrail (2). Additional cases are all evaluated.
+Stable IDs MUST be unique; the initial baseline occupies the first 16 entries.
 
 Malformed input cases cover ill-formed, non-actionable request text represented as
 strings. Malformed model outputs are exercised in evaluator unit tests and produce a
@@ -71,21 +73,24 @@ One evaluation of an output against a benchmark case.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `layer1Structural` | 0 or 1 | Exact JSON shape, field types, and enum gate |
-| `layer2Invariant` | 0 or 1 | Invariant, routing, urgency, and guardrail gate |
-| `layer3Semantic` | number 0.0-1.0 | Deterministic semantic/quality rubric score |
-| `caseScore` | number 0.0-1.0 | `0.40 * layer1Structural + 0.40 * layer2Invariant + 0.20 * layer3Semantic`; forced to 0 if Layer 1 fails |
-| `passed` | boolean | True only when Layers 1 and 2 pass, the score is at least 0.85, and expected Layer 3 semantic criteria pass |
+| `layer1` | object | Structural pass flag, binary score, and sanitized failure codes |
+| `layer2` | object | Invariant pass flag, binary score, and sanitized failure codes |
+| `layer3` | object | Semantic pass flag, 0.0-1.0 score, keyword counts, clarity result, and sanitized failure codes |
+| `caseScore` | number 0.0-1.0 | `0.40 * layer1.score + 0.40 * layer2.score + 0.20 * layer3.score`; forced to 0 if Layer 1 fails |
+| `passed` | boolean | True only when Layers 1 and 2 pass, Layer 3 is >=0.50, and the score is at least 0.85 |
 | `failureCodes` | string array | Sanitized, stable diagnostic codes; no raw model/provider text |
 
 The evaluator records all three layer outcomes even when an earlier layer fails; Layer 1
 failure still forces a zero case score. If no JSON candidate can be parsed or an external
 failure prevents a model response, each layer is recorded as failed with a sanitized
 failure code, so the case cannot pass. Layer 2 covers INV-1..4 and relevant behavioral
-and guardrail requirements. Layer 3 scores concept fidelity, summary/action usefulness,
-and clarity from deterministic case rubric data. A case passing the 0.85 score floor with
-Layers 1 and 2 equal to 1.0 requires a Layer 3 score of at least 0.25, as specified by the
-acceptance contract.
+and guardrail requirements. Layer 3 equals `0.70 * (matched_required_keywords /
+total_required_keywords) + 0.30 * Clarity_Check`. Required keywords are matched once,
+case-insensitively as substrings in the concatenated summary, suggested action,
+clarification question, and refusal reason. `Clarity_Check` is 1.0 only when the summary
+is 10-240 characters and the suggested action is at least 15 characters with no
+prohibited completion claim; otherwise it is 0.0. Layer 3 passes at >=0.50. With Layers
+1 and 2 passed, that gate yields a case score of at least 0.90.
 
 ## Typed Failure
 
@@ -105,9 +110,9 @@ One run over the full dataset.
 
 | Field | Type | Constraints |
 |---|---|---|
-| `totalCases` | integer | 16 for initial required dataset |
+| `totalCases` | integer | At least 16; the initial baseline is 16 |
 | `passingCases` | integer | Number with `passed: true` |
-| `passRate` | number 0.0-1.0 | At least 0.875 |
+| `passRate` | number 0.0-1.0 | At least 0.875 across the entire dataset |
 | `adversarialPassRate` | number 0.0-1.0 | Exactly 1.0 |
 | `caseResults` | array | One result per dataset case; failures preserved |
 | `externalFailureCount` | integer | Count of provider/network failures, separate from application failures |

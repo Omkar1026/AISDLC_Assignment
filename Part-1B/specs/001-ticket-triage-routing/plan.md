@@ -76,7 +76,7 @@ outside this feature's stated scope.
 | Gate | Plan decision | Status |
 |---|---|---|
 | Node.js 20+, CommonJS, built-in runtime only | Use Node global `fetch`, built-in filesystem/path/test modules, and CommonJS modules; install no runtime packages. | PASS |
-| Environment-only secrets | Read `GEMINI_API_KEY` and `LLM_MODEL` from environment/`.env`; send the key in the API-key header; exclude keys and raw provider payloads from logs/evidence. | PASS |
+| Environment-only secrets | Read `GEMINI_API_KEY` and `LLM_MODEL` from environment/`.env`; send the key as an encoded query parameter per the Gemini REST contract; exclude request URLs, keys, and raw provider payloads from logs/evidence. | PASS |
 | Directory separation | Keep runtime logic in `src/`, prompt in `prompts/`, dataset at `evals/dataset.json`, and evaluation code in `.harness/`. | PASS |
 | Layered trust boundary | Expose no accepted decision before Layer 1, Layer 2, and Layer 3 pass. | PASS |
 | Failure classification | Return distinct typed external/network and application-validation failures; never turn either into a success-shaped fallback decision. | PASS |
@@ -91,8 +91,9 @@ See [research.md](./research.md) for decisions and source references.
 
 Key choices:
 
-- Use the Gemini `generateContent` REST API via Node's native `fetch`; send the key in
-  `x-goog-api-key`, not in a URL or loggable request string.
+- Use the Gemini `generateContent` REST API via Node's native `fetch`; remove a leading
+  `models/` from the model name and send the encoded API key in the `key` query parameter.
+  Never log the request URL or persist it in evidence.
 - Make at most three total HTTP attempts for retryable failures, with exponential
   backoff/jitter and provider retry hints when supplied. Apply one 10-second wall-clock
   safety deadline; do not retry permanent client errors. Measure SC-008 using cumulative
@@ -169,7 +170,7 @@ evaluators with deterministic mock decisions and malformed responses.
 | Gate | Design evidence | Status |
 |---|---|---|
 | Node.js 20+, CommonJS, zero runtime dependencies | Only platform APIs are specified; tests use `node:test` and `node:assert/strict`. | PASS |
-| Secret handling | API key uses the request header; `.env` is ignored; evidence stores neither key nor raw model text/provider body. | PASS |
+| Secret handling | API key is loaded from environment/`.env` and sent as an encoded query parameter per the Gemini REST contract; request URLs are not logged or persisted; `.env` is ignored. | PASS |
 | Separation of concerns | All planned implementation and data files occupy the required `src/`, `prompts/`, `evals/`, and `.harness/` locations. | PASS |
 | Three-layer validation | Runner accepts a decision only after schema, invariants/guardrails, and semantic rubric complete. | PASS |
 | Failure classification | Contract distinguishes external provider/network failures from parse/schema/invariant/semantic failures. | PASS |

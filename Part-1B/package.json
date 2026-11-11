@@ -1,0 +1,13 @@
+{
+  "name": "helpdesk-ticket-triage",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "evaluate": "node .harness/eval-runner.js"
+  }
+}
