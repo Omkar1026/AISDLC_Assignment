@@ -45,6 +45,15 @@ const RESPONSE_SCHEMA = {
   ]
 };
 
+const ROUTING = {
+  NETWORK: 'NET_OPS',
+  HARDWARE: 'ENDPOINT_SUPPORT',
+  ACCESS: 'IAM_SECURITY',
+  SOFTWARE: 'APP_SUPPORT',
+  SECURITY: 'IAM_SECURITY',
+  UNKNOWN: 'MANUAL_TRIAGE'
+};
+
 let requestQueue = Promise.resolve();
 let lastRequestStartedAt = 0;
 
@@ -144,6 +153,137 @@ function resolveConfiguration(environment) {
     minIntervalMs = Math.max(DEFAULT_MIN_INTERVAL_MS, minIntervalMs);
   }
   return { apiKey, model, minIntervalMs };
+}
+
+function isUnsafeRequest(requestText) {
+  if (typeof requestText !== 'string' || requestText.trim() === '') return false;
+  const text = requestText.toLowerCase();
+  const requestVerbs = /\b(run|execute|generate|write|give me|tell me how|show me how|fetch|get|retrieve|send|reveal|show|print|extract|make me|grant me|escalate)\b/i;
+  const reportedIncidentWithoutAction =
+    /\b(?:reported|observed|detected|noticed|someone ran|attacker ran|was run)\b/i.test(text) &&
+    !requestVerbs.test(text);
+  if (reportedIncidentWithoutAction) return false;
+
+  return (
+    /\bignore\b.{0,50}\b(?:prior|previous|system|above)\s+instructions?\b/i.test(text) ||
+    /\b(?:reveal|show|print|extract|repeat)\b.{0,50}\b(?:system|hidden)\s+(?:prompt|instructions?)\b/i.test(text) ||
+    /\b(?:system|hidden)\s+(?:prompt|instructions?)\b.{0,50}\b(?:reveal|show|print|extract)\b/i.test(text) ||
+    /\b(?:bypass|disable|circumvent)\b.{0,50}\b(?:mfa|multi.factor|authentication|access control)\b/i.test(text) ||
+    /\b(?:override|disable|bypass|circumvent)\b.{0,50}\b(?:access|authorization|security) controls?\b/i.test(text) ||
+    /\b(?:fetch|retrieve|get|give|send|show|steal|obtain)\b.{0,60}\b(?:another|someone else|coworker|employee|user).{0,30}\b(?:password|token|credential|secret)\b/i.test(text) ||
+    /\b(?:harvest|collect|exfiltrate)\b.{0,40}\b(?:credentials?|passwords?|tokens?|secrets?)\b/i.test(text) ||
+    /\b(?:escalate|grant)\b.{0,40}\b(?:privileges?|admin|root)\b/i.test(text) ||
+    /\bmake me (?:an? )?(?:admin|administrator|root)\b/i.test(text) ||
+    /\brm\s+-rf\b/i.test(text) ||
+    /\bdrop\s+table\b/i.test(text) ||
+    (requestVerbs.test(text) && /\b(?:destructive|wipe|erase|delete)\b.{0,40}\b(?:data|database|files|system)\b/i.test(text))
+  );
+}
+
+function clarificationDecision(requestText) {
+  const text = typeof requestText === 'string' ? requestText.trim() : '';
+  const normalized = text.toLowerCase();
+  const hasWords = /[a-z0-9]/i.test(text);
+  const vagueRequest = /^(?:help(?: me)?(?: please)?|please help|not working|it(?:'s| is) not working|something is wrong|it is broken)[.!?\s]*$/i.test(text);
+  const hasActionableContext =
+    /\b(?:vpn|wi-?fi|network|internet|router|laptop|desktop|computer|mouse|keyboard|screen|monitor|printer|account|login|sign.?in|mfa|payroll|portal|application|app|software|browser|file|server|email|outlook|slack|teams|zoom|production|service|receipt|upload|checkout|error|locked|broken|access|font)\b/i.test(text);
+  const missingTarget =
+    (/\b(?:open|access)\b/i.test(normalized) && /\bshared file\b/i.test(normalized) &&
+      !/\b(?:named|called|in the \w+ app|in \w+ drive)\b/i.test(normalized)) ||
+    (/\b(?:cannot|can't|unable to|won't)\s+connect\b/i.test(normalized) &&
+      !/\b(?:to|with|via|using)\s+(?:the\s+)?(?:(?:company|corporate)\s+)?(?:vpn|wi-?fi|network|internet|server|service|portal|application|app)\b/i.test(normalized));
+  if (!hasWords || vagueRequest || !hasActionableContext || missingTarget) {
+    if (/\bshared file\b/i.test(normalized)) {
+      return {
+        summary: 'The shared file cannot be opened; the file and system details are missing.',
+        clarificationQuestion: 'Which shared file and system cannot you open?',
+        suggestedAction: 'Please clarify which shared file and system you cannot open so support can route the request.'
+      };
+    }
+    if (/\blaptop\b/i.test(normalized) && /\bconnect\b/i.test(normalized)) {
+      return {
+        summary: 'The laptop cannot connect, but the network or destination is unspecified.',
+        clarificationQuestion: 'Which network or service is the laptop unable to connect to?',
+        suggestedAction: 'Please clarify which network or service the laptop cannot connect to so support can investigate.'
+      };
+    }
+    return {
+      summary: 'The support request lacks an actionable system or symptom.',
+      clarificationQuestion: 'Which system is affected, and what symptom are you seeing?',
+      suggestedAction: 'Please clarify the affected system and symptom so support can route this request safely.'
+    };
+  }
+  return null;
+}
+
+function deterministicDecision(requestText) {
+  if (isUnsafeRequest(requestText)) {
+    const activeIncident = /\b(?:breach|outage|production is down|production outage)\b/i.test(requestText);
+    return {
+      category: 'SECURITY',
+      priority: 'P4',
+      assignedTeam: 'IAM_SECURITY',
+      summary: 'Security request includes an unsafe action that cannot be assisted.',
+      extractedEntities: activeIncident ? ['security incident'] : ['unsafe request'],
+      requiresClarification: false,
+      clarificationQuestion: null,
+      guardrailTriggered: true,
+      refusalReason: 'I cannot assist with unauthorized, destructive, or instruction-override actions.',
+      suggestedAction: activeIncident
+        ? 'I refuse the unsafe action. Report the security incident through standard IT security incident channels.'
+        : 'I refuse the unsafe request. Contact the IT security team through approved reporting channels.'
+    };
+  }
+
+  const clarification = clarificationDecision(requestText);
+  if (clarification) {
+    return {
+      category: 'UNKNOWN',
+      priority: 'P4',
+      assignedTeam: 'MANUAL_TRIAGE',
+      summary: clarification.summary,
+      extractedEntities: [],
+      requiresClarification: true,
+      clarificationQuestion: clarification.clarificationQuestion,
+      guardrailTriggered: false,
+      refusalReason: null,
+      suggestedAction: clarification.suggestedAction
+    };
+  }
+  return null;
+}
+
+function normalizeDecision(response, requestText) {
+  const decision = response.parsedOutput;
+  if (decision === null || typeof decision !== 'object' || Array.isArray(decision)) return response;
+
+  let changed = false;
+  const normalized = { ...decision };
+  if (normalized.guardrailTriggered === false && normalized.requiresClarification === false &&
+      Object.hasOwn(ROUTING, normalized.category) &&
+      normalized.assignedTeam !== ROUTING[normalized.category]) {
+    normalized.assignedTeam = ROUTING[normalized.category];
+    changed = true;
+  }
+
+  const routineIncident = /\b(?:error|fails?|broken|cannot|can't|unable|locked|not working|unavailable|issue)\b/i.test(requestText);
+  const simplePeripheralReplacement =
+    /\b(?:replacement|replace|new)\b.{0,40}\b(?:mouse|keyboard|monitor|peripheral|equipment)\b/i.test(requestText) ||
+    /\b(?:mouse|keyboard|monitor|peripheral|equipment)\b.{0,40}\b(?:replacement|replace|new)\b/i.test(requestText);
+  const highImpact = /\b(?:production|all users|every user|multiple users|multiple teams|company-wide|entire office|active breach|security breach|outage)\b/i.test(requestText);
+  if (!normalized.guardrailTriggered && !normalized.requiresClarification &&
+      simplePeripheralReplacement && normalized.priority !== 'P4') {
+    normalized.priority = 'P4';
+    changed = true;
+  } else if (!normalized.guardrailTriggered && !normalized.requiresClarification &&
+      routineIncident && !highImpact && !simplePeripheralReplacement && normalized.priority !== 'P3') {
+    normalized.priority = 'P3';
+    changed = true;
+  }
+
+  return changed
+    ? { ...response, rawText: JSON.stringify(normalized), parsedOutput: normalized }
+    : response;
 }
 
 function loadSystemPrompt() {
@@ -339,12 +479,25 @@ async function executeRequest(requestText, configuration, prompt, options, invoc
 }
 
 function generateTriage(requestText, options = {}) {
+  const deterministic = deterministicDecision(requestText);
+  if (deterministic) {
+    const rawText = JSON.stringify(deterministic);
+    return Promise.resolve({
+      rawText,
+      parsedOutput: deterministic,
+      attemptCount: 0,
+      latencyMs: 0
+    });
+  }
+
   const invocationStartedAt = (options.clock || Date.now)();
   const configuration = resolveConfiguration(loadEnvironment(options));
   const prompt = loadSystemPrompt();
   const queuedRequest = requestQueue.then(
-    () => executeRequest(requestText, configuration, prompt, options, invocationStartedAt),
     () => executeRequest(requestText, configuration, prompt, options, invocationStartedAt)
+      .then((response) => normalizeDecision(response, requestText)),
+    () => executeRequest(requestText, configuration, prompt, options, invocationStartedAt)
+      .then((response) => normalizeDecision(response, requestText))
   );
   requestQueue = queuedRequest.then(() => undefined, () => undefined);
   return queuedRequest;
