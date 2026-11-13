@@ -2,12 +2,16 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const dns = require('node:dns');
+
+dns.setDefaultResultOrder('ipv4first');
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_ATTEMPTS = 3;
 const BACKOFF_BASE_MS = 250;
 const BACKOFF_MAX_MS = 2_000;
 const DEFAULT_MIN_INTERVAL_MS = 1_000;
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const RESPONSE_SCHEMA = {
@@ -55,13 +59,14 @@ class ConfigurationError extends Error {
 }
 
 class ExternalApiError extends Error {
-  constructor(code, { status = null, attemptCount, latencyMs }) {
+  constructor(code, { status = null, attemptCount, latencyMs, diagnosticCode = null }) {
     super('Gemini API request failed.');
     this.name = 'ExternalApiError';
     this.code = code;
     this.status = status;
     this.attemptCount = attemptCount;
     this.latencyMs = latencyMs;
+    this.diagnosticCode = diagnosticCode;
   }
 }
 
@@ -98,27 +103,36 @@ function parseDotEnv(contents) {
 function loadEnvironment(options) {
   if (options.env !== undefined) return { ...options.env };
 
-  const envPath = path.resolve(__dirname, '..', '.env');
-  let fileValues = {};
-  try {
-    fileValues = parseDotEnv(fs.readFileSync(envPath, 'utf8'));
-  } catch (error) {
-    if (error.code !== 'ENOENT') throw new ConfigurationError('DOTENV_READ_FAILED');
+  const envPaths = options.dotenvPaths || [
+    path.join(__dirname, '..', '.env'),
+    path.join(process.cwd(), '.env')
+  ];
+  const fileValues = {};
+  for (const envPath of [...new Set(envPaths)]) {
+    try {
+      Object.assign(fileValues, parseDotEnv(fs.readFileSync(envPath, 'utf8')));
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw new ConfigurationError('DOTENV_READ_FAILED');
+    }
   }
-  return { ...fileValues, ...process.env };
+  return {
+    ...fileValues,
+    ...process.env,
+    LLM_MODEL: fileValues.LLM_MODEL || process.env.LLM_MODEL || DEFAULT_MODEL
+  };
 }
 
 function resolveConfiguration(environment) {
   const apiKey = typeof environment.GEMINI_API_KEY === 'string'
     ? environment.GEMINI_API_KEY.trim()
     : '';
-  const model = typeof environment.LLM_MODEL === 'string'
+  const configuredModel = typeof environment.LLM_MODEL === 'string'
     ? environment.LLM_MODEL.trim()
-    : '';
+    : DEFAULT_MODEL;
+  const model = configuredModel.replace(/^models\//, '').trim() || DEFAULT_MODEL;
   if (!apiKey || /^replace_with_your_key$/i.test(apiKey)) {
     throw new ConfigurationError('GEMINI_API_KEY_MISSING');
   }
-  if (!model) throw new ConfigurationError('LLM_MODEL_MISSING');
 
   const configuredInterval = environment.GEMINI_MIN_INTERVAL_MS;
   let minIntervalMs = DEFAULT_MIN_INTERVAL_MS;
@@ -153,12 +167,35 @@ function retryAfterMilliseconds(headerValue, now) {
   return Number.isNaN(date) ? 0 : Math.max(0, date - now);
 }
 
-function makeError(code, status, attempts, latencyMs) {
+function makeError(code, status, attempts, latencyMs, diagnosticCode = null) {
   return new ExternalApiError(code, {
     status,
     attemptCount: attempts,
-    latencyMs: Math.max(0, latencyMs)
+    latencyMs: Math.max(0, latencyMs),
+    diagnosticCode
   });
+}
+
+function classifyProviderError(status, responseText) {
+  let message = '';
+  try {
+    message = String(JSON.parse(responseText)?.error?.message || '').toLowerCase();
+  } catch {
+    return null;
+  }
+  if (status === 404 && /no longer available to new users/.test(message)) {
+    return 'MODEL_RETIRED_FOR_NEW_USERS';
+  }
+  if (status === 404 && /not found for api version|not supported for .*generatecontent/.test(message)) {
+    return 'MODEL_UNAVAILABLE_OR_METHOD_UNSUPPORTED';
+  }
+  if (status === 403 && /api key|credential/.test(message)) {
+    return 'API_KEY_REJECTED';
+  }
+  if (status === 403 && /not enabled|permission|access denied/.test(message)) {
+    return 'API_ACCESS_NOT_ENABLED';
+  }
+  return null;
 }
 
 async function executeRequest(requestText, configuration, prompt, options, invocationStartedAt) {
@@ -195,12 +232,11 @@ async function executeRequest(requestText, configuration, prompt, options, invoc
     let responseText;
     try {
       response = await fetchImpl(
-        `${GEMINI_ENDPOINT}/${encodeURIComponent(configuration.model)}:generateContent`,
+        `${GEMINI_ENDPOINT}/${encodeURIComponent(configuration.model)}:generateContent?key=${encodeURIComponent(configuration.apiKey)}`,
         {
           method: 'POST',
           headers: {
-            'content-type': 'application/json',
-            'x-goog-api-key': configuration.apiKey
+            'content-type': 'application/json'
           },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: prompt }] },
@@ -239,11 +275,12 @@ async function executeRequest(requestText, configuration, prompt, options, invoc
     totalLatencyMs += Math.max(0, clock() - requestStartedAt);
     if (!response.ok) {
       const status = Number.isInteger(response.status) ? response.status : null;
+      const diagnosticCode = classifyProviderError(status, responseText);
       if (status !== 429 && status !== 503) {
-        throw makeError(`HTTP_${status || 'ERROR'}`, status, attemptCount, totalLatencyMs);
+        throw makeError(`HTTP_${status || 'ERROR'}`, status, attemptCount, totalLatencyMs, diagnosticCode);
       }
       if (attempt === MAX_ATTEMPTS) {
-        throw makeError(`HTTP_${status}`, status, attemptCount, totalLatencyMs);
+        throw makeError(`HTTP_${status}`, status, attemptCount, totalLatencyMs, diagnosticCode);
       }
       const retryHeader = response.headers?.get?.('retry-after');
       const providerDelay = retryAfterMilliseconds(retryHeader, clock());
@@ -318,6 +355,9 @@ module.exports = {
   ConfigurationError,
   ExternalApiError,
   generateTriage,
+  DEFAULT_MODEL,
+  classifyProviderError,
+  loadEnvironment,
   parseDotEnv,
   resolveConfiguration
 };

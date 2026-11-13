@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const dns = require('node:dns');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -28,6 +29,10 @@ const decision = {
   refusalReason: null,
   suggestedAction: 'Check the VPN client status and share any displayed error with support.'
 };
+
+test('agent prefers IPv4 address resolution for Gemini requests', () => {
+  assert.equal(dns.getDefaultResultOrder(), 'ipv4first');
+});
 
 function response(status, candidate = decision) {
   const body = status === 200
