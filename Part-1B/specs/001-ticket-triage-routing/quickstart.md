@@ -19,6 +19,18 @@ Use the existing `.env.example` as a key-name/template reference. Create a local
 and supply a valid Gemini API key and model identifier. Do not paste credentials into
 source files, prompts, benchmark cases, command transcripts, or evidence.
 
+## Run the live demo
+
+From `Part-1B`, run three sample tickets through the agent and print each ticket with
+its structured JSON response:
+
+```powershell
+node demo.js
+```
+
+The VPN example uses the configured Gemini API and requires valid API credentials.
+Ambiguous and unsafe examples are handled locally by the agent.
+
 ## Validate Evaluators
 
 From the Part-1B project root run:

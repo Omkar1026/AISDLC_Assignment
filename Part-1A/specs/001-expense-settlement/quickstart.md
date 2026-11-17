@@ -34,6 +34,17 @@ node src/app.js
 The executable entry point may use a configurable port and a documented local
 default. Importing `src/app.js` from tests must not start a listener.
 
+## Run the live demo
+
+From `Part-1A`, start a disposable server on an ephemeral port and show the
+equal-split, balance, settlement, and invalid-expense responses in the terminal:
+
+```powershell
+node demo.js
+```
+
+The demo closes its server after the requests finish.
+
 ## Validate representative contracts
 
 1. Send `POST /expenses` with an `EQUAL` split and verify HTTP 201, an `id`,

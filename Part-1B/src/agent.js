@@ -165,7 +165,9 @@ function isUnsafeRequest(requestText) {
   if (reportedIncidentWithoutAction) return false;
 
   return (
-    /\bignore\b.{0,50}\b(?:prior|previous|system|above)\s+instructions?\b/i.test(text) ||
+    /\bignore\b.{0,50}\binstructions?\b/i.test(text) ||
+    /\b(?:reset|change|set|modify)\b.{0,50}\b(?:the\s+)?(?:ceo|chief executive|another(?:\s+user)?|someone else's|another person's)\b.{0,30}\bpassword\b/i.test(text) ||
+    /\bpassword\b.{0,30}\bfor\s+(?:the\s+)?(?:ceo|chief executive|another(?:\s+user)?|someone else)\b/i.test(text) ||
     /\b(?:reveal|show|print|extract|repeat)\b.{0,50}\b(?:system|hidden)\s+(?:prompt|instructions?)\b/i.test(text) ||
     /\b(?:system|hidden)\s+(?:prompt|instructions?)\b.{0,50}\b(?:reveal|show|print|extract)\b/i.test(text) ||
     /\b(?:bypass|disable|circumvent)\b.{0,50}\b(?:mfa|multi.factor|authentication|access control)\b/i.test(text) ||

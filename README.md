@@ -69,12 +69,15 @@ repository root. Node.js 20 or later is required.
 
 ```powershell
 Set-Location .\Part-1A
+node demo.js
 node --test tests/app.test.js
 node .harness/harness.js
 ```
 
 The harness runs the configured lint, security/SAST, and contract/unit-test
 gates and writes its report to `Part-1A/evidence/harness-results.json`.
+`node demo.js` starts a temporary server on an ephemeral port and prints sample
+expense, balance, settlement, and validation responses.
 
 ### Part-1B offline tests and three-layer evaluation
 
@@ -83,8 +86,12 @@ credentials:
 
 ```powershell
 Set-Location .\Part-1B
+node demo.js
 node --test
 ```
+
+The live demo uses Gemini credentials for the VPN ticket; the ambiguous and
+unsafe examples are resolved locally.
 
 To run the evaluation against Gemini, create a local `.env` from the example
 and edit it to set a valid API key and the required model. If `.env` already
